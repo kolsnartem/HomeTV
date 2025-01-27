@@ -190,12 +190,12 @@
                                     loadFiles(directory + href, baseUrl);
                                 });
                             } else {
-                                const httpLink = `http://${baseUrl}${directory}${href}`;
-                                fileLink.href = httpLink;
+                                const vlcLink = `vlc://http://${baseUrl}${directory}${href}`;
+                                fileLink.href = vlcLink;
                                 
                                 const iconButton = document.createElement('button');
                                 iconButton.className = 'icon-button';
-                                iconButton.setAttribute('data-clipboard-text', httpLink);
+                                iconButton.setAttribute('data-clipboard-text', vlcLink);
 
                                 const linkIcon = document.createElement('img');
                                 linkIcon.src = 'http://192.168.31.6/media/icon.png';
