@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Server</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            color: #1e88e5;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #1565c0;
+        }
+
+        #file-list {
+            text-align: left;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #2c2c2c;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .file-item:hover {
+            background-color: #333333;
+        }
+
+        .file-item a {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 16px;
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+        }
+
+        .file-item a:hover {
+            text-decoration: underline;
+        }
+
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+        }
+
+        .icon-button img {
+            width: 24px;
+            height: 24px;
+            transition: opacity 0.3s;
+        }
+
+        .icon-button .check-icon {
+            display: none;
+        }
+        
+        #no-files-message {
+            text-align: center;
+        }
+
+        .back-button {
+            background-color: #e53935;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .back-button:hover {
+            background-color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="home-server">Home Server</h1>
+
+        <div class="nav-buttons">
+            <button id="tv-button">SD Card</button>
+            <button id="movies-button">HDD1</button>
+            <button id="hdd-button">HDD2</button>
+        </div>
+
+        <div id="file-list">
+            <p id="no-files-message">Select a folder to view files</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+
+    <script>
+        const fileList = document.getElementById('file-list');
+        const noFilesMessage = document.getElementById('no-files-message');
+        const homeServer = document.getElementById('home-server');
+
+        homeServer.addEventListener('click', function() {
+            window.location.reload();
+        });
+
+        function loadFiles(directory, baseUrl) {
+            fetch('http://' + baseUrl + directory)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const links = doc.querySelectorAll('a');
+                    fileList.innerHTML = '';
+
+                    if (directory !== '/media/tv/' && 
+                        directory !== '/sda1/home/john/media/movies/' && 
+                        directory !== '/external') {
+                        addBackButton(directory, baseUrl);
+                    }
+
+                    if (links.length === 0) {
+                        noFilesMessage.textContent = 'No files found in ' + directory;
+                        noFilesMessage.style.display = 'block';
+                    } else {
+                        noFilesMessage.style.display = 'none';
+                        links.forEach((link) => {
+                            const href = link.getAttribute('href');
+                            const fileName = decodeURIComponent(link.innerText);
+
+                            if (fileName === "../") return;
+
+                            const fileItem = document.createElement('div');
+                            fileItem.className = 'file-item';
+
+                            const fileLink = document.createElement('a');
+                            fileLink.innerText = fileName;
+
+                            if (href.endsWith('/')) {
+                                fileLink.href = directory + href;
+                                fileLink.addEventListener('click', function(event) {
+                                    event.preventDefault();
+                                    loadFiles(directory + href, baseUrl);
+                                });
+                            } else {
+                                const httpLink = `http://${baseUrl}${directory}${href}`;
+                                fileLink.href = httpLink;
+                                
+                                const iconButton = document.createElement('button');
+                                iconButton.className = 'icon-button';
+                                iconButton.setAttribute('data-clipboard-text', httpLink);
+
+                                const linkIcon = document.createElement('img');
+                                linkIcon.src = 'http://192.168.31.6/media/icon.png';
+                                linkIcon.alt = 'Copy link';
+                                linkIcon.className = 'link-icon';
+                                
+                                linkIcon.onerror = function() {
+                                    this.src = 'http://100.64.221.88/media/icon.png';
+                                };
+
+                                const checkIcon = document.createElement('img');
+                                checkIcon.src = 'http://192.168.31.6/media/check.png';
+                                checkIcon.alt = 'Copied';
+                                checkIcon.className = 'check-icon';
+                                
+                                checkIcon.onerror = function() {
+                                    this.src = 'http://100.64.221.88/media/check.png';
+                                };
+
+                                iconButton.appendChild(linkIcon);
+                                iconButton.appendChild(checkIcon);
+
+                                iconButton.addEventListener('click', function() {
+                                    linkIcon.style.display = 'none';
+                                    checkIcon.style.display = 'block';
+                                    setTimeout(() => {
+                                        checkIcon.style.opacity = '0';
+                                        setTimeout(() => {
+                                            checkIcon.style.display = 'none';
+                                            linkIcon.style.display = 'block';
+                                            linkIcon.style.opacity = '0';
+                                            setTimeout(() => {
+                                                linkIcon.style.opacity = '1';
+                                            }, 50);
+                                        }, 300);
+                                    }, 1000);
+                                });
+
+                                fileItem.appendChild(iconButton);
+                            }
+
+                            fileItem.insertBefore(fileLink, fileItem.firstChild);
+                            fileList.appendChild(fileItem);
+                        });
+
+                        new ClipboardJS('.icon-button');
+                    }
+                });
+        }
+
+        function addBackButton(currentDirectory, baseUrl) {
+            const backButton = document.createElement('button');
+            backButton.className = 'back-button';
+            backButton.innerText = 'Back';
+            backButton.addEventListener('click', function() {
+                const parentDirectory = currentDirectory.split('/').slice(0, -2).join('/') + '/';
+                loadFiles(parentDirectory, baseUrl);
+            });
+            fileList.insertBefore(backButton, fileList.firstChild);
+        }
+
+        document.getElementById('tv-button').addEventListener('click', function () {
+            loadFiles('/media/tv/', '100.64.221.88');
+        });
+
+        document.getElementById('movies-button').addEventListener('click', function () {
+            loadFiles('/sda1/home/john/media/movies/', '100.64.221.88');
+        });
+
+        document.getElementById('hdd-button').addEventListener('click', function () {
+            loadFiles('/external/', '100.64.221.88');
+        });
+    </script>
+</body>
+</html>
